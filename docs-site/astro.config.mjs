@@ -49,6 +49,7 @@ export default defineConfig({
             'usage/browse-and-select',
             'usage/copy-command-blocks',
             'usage/codex-capture',
+            'usage/codebuddy-code',
             'usage/history',
             'usage/configuration',
             'usage/hotkey',
@@ -74,7 +75,11 @@ export default defineConfig({
         {
           label: 'Project',
           translations: { 'zh-CN': '项目' },
-          items: ['project/roadmap', 'project/release-notes'],
+          items: [
+            'project/roadmap',
+            'project/codebuddy-provider-plan',
+            'project/release-notes',
+          ],
         },
       ],
     }),

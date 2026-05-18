@@ -35,6 +35,9 @@ prompts = ["PS C:\\repo> ", "dev>"]
 [codex]
 session_dirs = ["/srv/sivtr/root-codex/sessions"]
 
+[codebuddy]
+session_dirs = ["/Users/me/.codebuddy/projects"]
+
 [hotkey]
 chord = "alt+y"
 ```
@@ -110,6 +113,19 @@ session_dirs = []
 | `session_dirs` | string array | `[]` | Extra exported Codex `sessions` directories to browse with `copy codex --pick` |
 
 On macOS, a typical shared path is `/Users/Shared/sivtr/root-codex/sessions`.
+
+## codebuddy
+
+```toml
+[codebuddy]
+session_dirs = []
+```
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `session_dirs` | string array | `[]` | Extra CodeBuddy project directories to scan for JSONL sessions |
+
+The default source is `~/.codebuddy/projects`. `sivtr` does not read CodeBuddy logs, traces, credentials, or `subagents/*.jsonl` as primary sessions.
 
 ## hotkey
 

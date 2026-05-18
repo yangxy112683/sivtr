@@ -110,6 +110,10 @@ session_dirs = ["/Users/Shared/sivtr/root-codex/sessions"]
 - 导出侧：`rm -rf /Users/Shared/sivtr/root-codex-smoke && sivtr codex export --dest /Users/Shared/sivtr/root-codex-smoke && find /Users/Shared/sivtr/root-codex-smoke -maxdepth 2 -type f | sed -n '1,5p'`
 - 读取侧（在 `[codex].session_dirs` 配好之后）：`sivtr copy codex --pick`
 
+## CodeBuddy Code 会话
+
+CodeBuddy Code / CodeBuddy CLI transcript 的用法见 [CodeBuddy Code](./codebuddy-code/)。
+
 ## Windows 热键
 
 在 Windows 上，热键守护进程会为启动它的项目目录打开 Codex 选择器：

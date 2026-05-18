@@ -335,18 +335,10 @@ mod tests {
     use crate::config::SivtrConfig;
     use serde_json::json;
     use std::path::Path;
-    use std::{
-        env, fs,
-        path::PathBuf,
-        sync::{Mutex, OnceLock},
-        time::Duration,
-    };
+    use std::{env, fs, path::PathBuf, time::Duration};
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        crate::test_env::lock()
     }
 
     fn contains_path(dirs: &[PathBuf], expected: &str) -> bool {

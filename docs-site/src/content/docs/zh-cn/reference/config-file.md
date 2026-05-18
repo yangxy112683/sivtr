@@ -35,6 +35,9 @@ prompts = ["PS C:\\repo> ", "dev>"]
 [codex]
 session_dirs = ["/srv/sivtr/root-codex/sessions"]
 
+[codebuddy]
+session_dirs = ["/Users/me/.codebuddy/projects"]
+
 [hotkey]
 chord = "alt+y"
 ```
@@ -110,6 +113,19 @@ session_dirs = []
 | `session_dirs` | string array | `[]` | 额外的导出 Codex `sessions` 目录，可供 `copy codex --pick` 浏览 |
 
 在 macOS 上，常见的共享路径可以是 `/Users/Shared/sivtr/root-codex/sessions`。
+
+## codebuddy
+
+```toml
+[codebuddy]
+session_dirs = []
+```
+
+| 键 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `session_dirs` | string array | `[]` | 额外扫描的 CodeBuddy project JSONL 会话目录 |
+
+默认来源是 `~/.codebuddy/projects`。`sivtr` 不会把 CodeBuddy logs、traces、凭据文件或 `subagents/*.jsonl` 当作主会话读取。
 
 ## hotkey
 

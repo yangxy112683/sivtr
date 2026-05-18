@@ -171,6 +171,17 @@ sivtr copy codex all --max-blocks 0
 sivtr copy codex all --max-blocks 10000
 ```
 
+复用 `~/.codebuddy/projects` 下的 CodeBuddy Code 会话：
+
+```bash
+sivtr copy codebuddy        # 最近一轮用户消息 + 助手回复
+sivtr copy codebuddy out    # 最近助手回复
+sivtr copy codebuddy in     # 最近用户消息
+sivtr copy codebuddy tool   # 最近工具输出
+sivtr copy codebuddy all    # 整个解析后的会话
+sivtr copy codebuddy --pick
+```
+
 默认会过滤过程性 commentary，所以 `sivtr copy codex out` 更倾向返回最终助手回复，而不是中间状态更新。
 
 为避免超大 Codex transcript 让导入或 picker 变慢，默认只保留最近 `10000` 个解析后的 block。若要全量导入，可在配置里设置 `[codex].max_blocks = 0`，或在命令行传 `--max-blocks 0`。
@@ -343,6 +354,7 @@ sivtr hotkey stop
 ## 文档
 
 - 英文文档：[https://sivtr.pages.dev/](https://sivtr.pages.dev/)
+- CodeBuddy Code 使用指南：[https://sivtr.pages.dev/zh-cn/usage/codebuddy-code/](https://sivtr.pages.dev/zh-cn/usage/codebuddy-code/)
 - 中文文档：[https://sivtr.pages.dev/zh-cn/](https://sivtr.pages.dev/zh-cn/)
 - VS Code 插件：[editors/vscode/README.md](editors/vscode/README.md)
 

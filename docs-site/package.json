@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
+    "node": "^22.22.3",
     "typescript": "latest"
   },
   "overrides": {

@@ -18,6 +18,8 @@ pub struct SivtrConfig {
     pub copy: CopyConfig,
     /// Codex session settings.
     pub codex: CodexConfig,
+    /// CodeBuddy session settings.
+    pub codebuddy: CodeBuddyConfig,
     /// Global hotkey settings.
     pub hotkey: HotkeyConfig,
 }
@@ -86,6 +88,14 @@ impl CopyConfig {
 #[serde(default)]
 pub struct CodexConfig {
     /// Additional directories that contain exported Codex session JSONL trees.
+    pub session_dirs: Vec<PathBuf>,
+}
+
+/// CodeBuddy session configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CodeBuddyConfig {
+    /// Additional directories that contain CodeBuddy project JSONL session trees.
     pub session_dirs: Vec<PathBuf>,
 }
 

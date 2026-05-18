@@ -44,11 +44,14 @@ AI sessions are a first-class capture source. The product goal is for agent tran
 - [x] Parse Claude-style session records.
 - [x] Copy the latest user, assistant, tool, turn, or full session block.
 - [x] Browse local and mirrored session directories through picker workflows.
+- [x] Parse CodeBuddy Code / CodeBuddy CLI transcript records.
 - [ ] Support more agent providers behind the shared session-provider interface.
 - [ ] Keep provider-specific parsing isolated from shared selection, search, and export logic.
 - [ ] Make session discovery robust across local, mirrored, and shared transcript directories.
 - [ ] Expose provider selection consistently in CLI commands, hotkeys, and the TUI workspace.
 - [ ] Avoid binding the data model to one vendor's transcript format.
+
+The CodeBuddy implementation scope is tracked in the [CodeBuddy provider plan](./codebuddy-provider-plan/).
 
 ## TUI workspace
 

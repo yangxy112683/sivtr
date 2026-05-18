@@ -81,6 +81,7 @@ sivtr copy [MODE] [SELECTOR] [OPTIONS]
 | `out` | 复制输出 |
 | `cmd` | 复制裸命令 |
 | `codex` | 复制 Codex 会话内容 |
+| `codebuddy` | 复制 CodeBuddy Code 会话内容 |
 
 别名：
 
@@ -144,6 +145,34 @@ sivtr copy codex out --print
 sivtr copy codex out --pick
 sivtr copy codex tool --regex error
 sivtr copy codex all --lines 1:20
+```
+
+## copy codebuddy
+
+```bash
+sivtr copy codebuddy [MODE] [SELECTOR] [OPTIONS]
+```
+
+读取 `~/.codebuddy/projects` 下的 CodeBuddy Code / CodeBuddy CLI JSONL transcript。诊断 logs、traces、凭据文件和 `subagents/*.jsonl` 不会作为主会话读取。
+
+模式：
+
+| 模式 | 含义 |
+| --- | --- |
+| 不写模式 | 最近已完成的用户消息加助手回复 |
+| `out` | 最近助手回复 |
+| `in` | 最近用户消息 |
+| `tool` | 最近工具输出 |
+| `all` | 整个解析后的会话 |
+
+示例：
+
+```bash
+sivtr copy codebuddy
+sivtr copy codebuddy out --print
+sivtr copy codebuddy tool --print
+sivtr copy codebuddy --session cb-session
+sivtr copy codebuddy --pick
 ```
 
 ## diff

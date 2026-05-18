@@ -132,6 +132,41 @@ Examples:
   sivtr copy codex all --lines 1:20
 ";
 
+const COPY_CODEBUDDY_AFTER_HELP: &str = "\
+Defaults:
+  `sivtr copy codebuddy` copies the last completed user + assistant turn
+  from the current CodeBuddy Code session.
+
+Session Resolution:
+  By default, sivtr reads the newest CodeBuddy transcript whose `cwd`
+  matches the current working directory.
+  If no cwd-matching session exists, sivtr falls back to the newest
+  non-empty CodeBuddy transcript.
+  `--session N` picks the Nth newest selectable CodeBuddy session
+  (the same session numbering shown in `--pick`).
+  `--session ID` matches a session id or id prefix.
+
+Selector Semantics:
+  Selection is relative to the newest matching CodeBuddy item.
+  `1` means the latest turn/message/tool output, `2` means the 2nd-latest.
+
+Modes:
+  sivtr copy codebuddy       Copy the last user + assistant turn
+  sivtr copy codebuddy out   Copy the last assistant reply
+  sivtr copy codebuddy in    Copy the last user message
+  sivtr copy codebuddy tool  Copy the last tool output
+  sivtr copy codebuddy all   Copy the whole parsed session
+
+Examples:
+  sivtr copy codebuddy
+  sivtr copy codebuddy --session 2
+  sivtr copy codebuddy --session cb-session
+  sivtr copy codebuddy out --print
+  sivtr copy codebuddy tool --print
+  sivtr copy codebuddy --pick
+  sivtr copy codebuddy all --lines 1:20
+";
+
 const COPY_CLAUDE_AFTER_HELP: &str = "\
 Defaults:
   `sivtr copy claude` copies the last completed user + assistant turn
@@ -315,6 +350,10 @@ pub enum CopySubcommand {
     /// Copy content from the current Claude Code conversation session
     #[command(after_help = COPY_CLAUDE_AFTER_HELP)]
     Claude(AgentCopyCommand),
+
+    /// Copy content from the current CodeBuddy Code conversation session
+    #[command(name = "codebuddy", after_help = COPY_CODEBUDDY_AFTER_HELP)]
+    CodeBuddy(AgentCopyCommand),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -781,6 +820,61 @@ mod tests {
     }
 
     #[test]
+    fn codebuddy_copy_defaults_to_last_turn() {
+        let cli = Cli::try_parse_from(["sivtr", "copy", "codebuddy"]).unwrap();
+
+        match cli.command {
+            Some(Commands::Copy(cmd)) => match cmd.mode {
+                Some(CopySubcommand::CodeBuddy(codebuddy)) => {
+                    assert!(codebuddy.mode.is_none());
+                    assert_eq!(codebuddy.args.common.common.selector, None);
+                }
+                _ => panic!("expected copy codebuddy mode"),
+            },
+            _ => panic!("expected copy command"),
+        }
+    }
+
+    #[test]
+    fn codebuddy_copy_accepts_nested_modes() {
+        for mode in ["in", "out", "tool", "all"] {
+            let cli = Cli::try_parse_from(["sivtr", "copy", "codebuddy", mode, "--print"]).unwrap();
+
+            match cli.command {
+                Some(Commands::Copy(cmd)) => match cmd.mode {
+                    Some(CopySubcommand::CodeBuddy(codebuddy)) => match (mode, codebuddy.mode) {
+                        ("in", Some(AgentCopyMode::In(args)))
+                        | ("out", Some(AgentCopyMode::Out(args)))
+                        | ("tool", Some(AgentCopyMode::Tool(args)))
+                        | ("all", Some(AgentCopyMode::All(args))) => {
+                            assert!(args.common.common.print)
+                        }
+                        _ => panic!("expected copy codebuddy {mode} mode"),
+                    },
+                    _ => panic!("expected copy codebuddy mode"),
+                },
+                _ => panic!("expected copy command"),
+            }
+        }
+    }
+
+    #[test]
+    fn codebuddy_copy_accepts_session_selector() {
+        let cli =
+            Cli::try_parse_from(["sivtr", "copy", "codebuddy", "--session", "abc123"]).unwrap();
+
+        match cli.command {
+            Some(Commands::Copy(cmd)) => match cmd.mode {
+                Some(CopySubcommand::CodeBuddy(codebuddy)) => {
+                    assert_eq!(codebuddy.args.session.as_deref(), Some("abc123"));
+                }
+                _ => panic!("expected copy codebuddy mode"),
+            },
+            _ => panic!("expected copy command"),
+        }
+    }
+
+    #[test]
     fn hotkey_start_accepts_chord_override() {
         let cli = Cli::try_parse_from(["sivtr", "hotkey", "start", "--chord", "alt+y"]).unwrap();
 
@@ -812,6 +906,29 @@ mod tests {
                 _ => panic!("expected hotkey start"),
             },
             _ => panic!("expected hotkey command"),
+        }
+    }
+
+    #[test]
+    fn hotkey_accepts_codebuddy_provider_override() {
+        let cli = Cli::try_parse_from([
+            "sivtr",
+            "hotkey-pick-agent",
+            "--cwd",
+            ".",
+            "--provider",
+            "codebuddy",
+        ])
+        .unwrap();
+
+        match cli.command {
+            Some(Commands::HotkeyPickAgent(args)) => {
+                assert_eq!(
+                    args.provider,
+                    HotkeyProviderSelection::provider(AgentProvider::CodeBuddy)
+                );
+            }
+            _ => panic!("expected hotkey-pick-agent command"),
         }
     }
 

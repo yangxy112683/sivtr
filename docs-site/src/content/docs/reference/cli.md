@@ -81,6 +81,7 @@ Modes:
 | `out` | Copy output |
 | `cmd` | Copy bare command |
 | `codex` | Copy Codex session content |
+| `codebuddy` | Copy CodeBuddy Code session content |
 
 Aliases:
 
@@ -144,6 +145,34 @@ sivtr copy codex out --print
 sivtr copy codex out --pick
 sivtr copy codex tool --regex error
 sivtr copy codex all --lines 1:20
+```
+
+## copy codebuddy
+
+```bash
+sivtr copy codebuddy [MODE] [SELECTOR] [OPTIONS]
+```
+
+Reads CodeBuddy Code / CodeBuddy CLI JSONL transcripts from `~/.codebuddy/projects`. It ignores diagnostic logs, traces, credential files, and `subagents/*.jsonl` as primary sessions.
+
+Modes:
+
+| Mode | Meaning |
+| --- | --- |
+| no mode | Last completed user plus assistant turn |
+| `out` | Last assistant reply |
+| `in` | Last user message |
+| `tool` | Last tool output |
+| `all` | Whole parsed session |
+
+Examples:
+
+```bash
+sivtr copy codebuddy
+sivtr copy codebuddy out --print
+sivtr copy codebuddy tool --print
+sivtr copy codebuddy --session cb-session
+sivtr copy codebuddy --pick
 ```
 
 ## diff

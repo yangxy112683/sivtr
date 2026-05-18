@@ -8,7 +8,7 @@ description: How the sivtr workspace is split between CLI, TUI, and core modules
 - `sivtr`, the binary crate in `src/`;
 - `sivtr-core`, the library crate in `crates/sivtr-core/`.
 
-The binary owns user interaction: CLI parsing, command dispatch, TUI state, and platform-specific hotkey behavior. The core crate owns reusable logic: capture, parsing, buffers, selection, search, history, export, config, and Codex session parsing.
+The binary owns user interaction: CLI parsing, command dispatch, TUI state, and platform-specific hotkey behavior. The core crate owns reusable logic: capture, parsing, buffers, selection, search, history, export, config, and agent session parsing.
 
 ## Workspace layout
 
@@ -33,6 +33,8 @@ sivtr/
          |- search/
          |- selection/
          |- session/
+         |- ai.rs
+         |- claude.rs
          `- codex.rs
 ```
 
@@ -65,7 +67,9 @@ The core crate contains reusable domain logic:
 | `export` | clipboard, file, and editor export helpers |
 | `config` | TOML config model, defaults, and path resolution |
 | `session` | structured session entries and rendering |
-| `codex` | Codex session discovery, parsing, and formatting |
+| `ai` | agent provider registry, shared session/block model, selection, and formatting |
+| `codex` | Codex session discovery and parsing |
+| `claude` | Claude transcript session discovery and parsing |
 
 This split keeps computation and data handling in Rust modules that can be tested independently from the TUI.
 
@@ -95,11 +99,13 @@ Copy mode:
 session log -> SessionEntry list -> command blocks -> selector -> filters -> clipboard
 ```
 
-Codex copy:
+Agent transcript copy:
 
 ```text
-~/.codex/sessions -> current cwd match -> parsed blocks -> selector -> filters -> clipboard
+provider transcript dirs -> current cwd match -> parsed blocks -> selector -> filters -> clipboard
 ```
+
+Each agent provider should keep its own file discovery and transcript parsing in a focused core module. The shared layer should only handle `AgentSession`, `AgentBlock`, selectors, filters, picker behavior, and clipboard output. The planned CodeBuddy provider should follow this boundary.
 
 ## Design boundary
 

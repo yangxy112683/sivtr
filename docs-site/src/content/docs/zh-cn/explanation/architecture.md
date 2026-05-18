@@ -8,7 +8,7 @@ description: sivtr workspace 如何拆分 CLI、TUI 和核心模块。
 - `sivtr`：位于 `src/` 的二进制 crate；
 - `sivtr-core`：位于 `crates/sivtr-core/` 的库 crate。
 
-二进制层负责用户交互：CLI 解析、命令分发、TUI 状态和平台相关热键行为。核心 crate 负责可复用逻辑：捕获、解析、buffer、选择、搜索、历史、导出、配置和 Codex 会话解析。
+二进制层负责用户交互：CLI 解析、命令分发、TUI 状态和平台相关热键行为。核心 crate 负责可复用逻辑：捕获、解析、buffer、选择、搜索、历史、导出、配置和 agent 会话解析。
 
 ## Workspace 布局
 
@@ -33,6 +33,8 @@ sivtr/
          |- search/
          |- selection/
          |- session/
+         |- ai.rs
+         |- claude.rs
          `- codex.rs
 ```
 
@@ -65,7 +67,9 @@ sivtr/
 | `export` | 剪贴板、文件和编辑器导出辅助 |
 | `config` | TOML 配置模型、默认值和路径解析 |
 | `session` | 结构化会话条目和渲染 |
-| `codex` | Codex 会话发现、解析和格式化 |
+| `ai` | agent provider 注册表、共享 session/block 模型和选择格式化 |
+| `codex` | Codex 会话发现和解析 |
+| `claude` | Claude transcript 会话发现和解析 |
 
 这个拆分让计算和数据处理能独立于 TUI 进行测试。
 
@@ -95,11 +99,13 @@ session log -> render entries -> parse::parse_lines -> Buffer -> command block s
 session log -> SessionEntry list -> command blocks -> selector -> filters -> clipboard
 ```
 
-Codex 复制：
+Agent transcript 复制：
 
 ```text
-~/.codex/sessions -> current cwd match -> parsed blocks -> selector -> filters -> clipboard
+provider transcript dirs -> current cwd match -> parsed blocks -> selector -> filters -> clipboard
 ```
+
+每个 agent provider 应把自己的文件发现和格式解析隔离在独立核心模块里。共享层只处理 `AgentSession`、`AgentBlock`、选择器、过滤器、picker 和剪贴板输出。计划中的 CodeBuddy provider 也应遵循这个边界。
 
 ## 设计边界
 

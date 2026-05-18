@@ -171,6 +171,17 @@ sivtr copy codex all --max-blocks 0
 sivtr copy codex all --max-blocks 10000
 ```
 
+Reuse CodeBuddy Code sessions from `~/.codebuddy/projects`:
+
+```bash
+sivtr copy codebuddy        # latest completed user + assistant turn
+sivtr copy codebuddy out    # latest assistant reply
+sivtr copy codebuddy in     # latest user message
+sivtr copy codebuddy tool   # latest tool output
+sivtr copy codebuddy all    # parsed session
+sivtr copy codebuddy --pick
+```
+
 Quick one-line checks:
 
 - dialogue/session picker flow: `sivtr copy codex --pick`
@@ -355,6 +366,7 @@ The default shortcut is `alt+y`.
 ## Documentation
 
 - English docs: [https://sivtr.pages.dev/](https://sivtr.pages.dev/)
+- CodeBuddy Code guide: [https://sivtr.pages.dev/usage/codebuddy-code/](https://sivtr.pages.dev/usage/codebuddy-code/)
 - Chinese docs: [https://sivtr.pages.dev/zh-cn/](https://sivtr.pages.dev/zh-cn/)
 - VS Code extension: [editors/vscode/README.md](editors/vscode/README.md)
 

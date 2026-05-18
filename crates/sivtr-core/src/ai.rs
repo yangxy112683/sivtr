@@ -9,6 +9,7 @@ use std::time::SystemTime;
 pub enum AgentProvider {
     Claude,
     Codex,
+    CodeBuddy,
 }
 
 #[derive(Clone, Copy)]
@@ -38,6 +39,14 @@ const AGENT_PROVIDER_SPECS: &[AgentProviderSpec] = &[
         current_session_id_env: Some("CLAUDE_SESSION_ID"),
         factory: claude_provider,
     },
+    AgentProviderSpec {
+        provider: AgentProvider::CodeBuddy,
+        name: "CodeBuddy",
+        command_name: "codebuddy",
+        current_transcript_env: None,
+        current_session_id_env: None,
+        factory: codebuddy_provider,
+    },
 ];
 
 fn codex_provider() -> Box<dyn AgentSessionProvider> {
@@ -46,6 +55,10 @@ fn codex_provider() -> Box<dyn AgentSessionProvider> {
 
 fn claude_provider() -> Box<dyn AgentSessionProvider> {
     Box::new(crate::claude::ClaudeProvider)
+}
+
+fn codebuddy_provider() -> Box<dyn AgentSessionProvider> {
+    Box::new(crate::codebuddy::CodeBuddyProvider)
 }
 
 impl AgentProvider {
