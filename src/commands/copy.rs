@@ -16,7 +16,8 @@ mod workspace_picker;
 
 use crate::tui::terminal::{init as init_tui, restore as restore_tui};
 use crate::tui::workspace::{
-    TextPair, WorkspaceFocus, WorkspacePickedContent, WorkspaceSession, WorkspaceSource,
+    TextPair, WorkspaceCopyParts, WorkspaceFocus, WorkspacePickedContent, WorkspaceSession,
+    WorkspaceSource,
 };
 use workspace_picker::run_workspace_picker_on_terminal;
 
@@ -499,6 +500,7 @@ fn build_agent_session_choice(
     selection_mode: AgentSelection,
 ) -> Option<WorkspaceSession> {
     let units = build_agent_units(&session, selection_mode);
+    let copy_units = build_agent_copy_units(&session, selection_mode, &units);
     if session.blocks.is_empty() || units.is_empty() {
         return None;
     }
@@ -514,6 +516,7 @@ fn build_agent_session_choice(
         modified: info.modified,
         title,
         units,
+        copy_units,
         dialogue_titles,
     })
 }
@@ -608,13 +611,14 @@ fn build_terminal_workspace_session(
                 return None;
             }
 
+            let copy = terminal_workspace_copy_parts(block, include_prompt, prompt_override);
             let input = block.plain.input_without_prompt.trim();
             let title = if input.is_empty() {
                 build_text_preview(&block.plain.output)
             } else {
                 build_text_preview(input)
             };
-            Some((unit, title))
+            Some((unit, copy, title))
         })
         .collect::<Vec<_>>();
 
@@ -622,15 +626,36 @@ fn build_terminal_workspace_session(
         return None;
     }
 
-    let (units, dialogue_titles): (Vec<_>, Vec<_>) = entries.into_iter().unzip();
+    let mut units = Vec::with_capacity(entries.len());
+    let mut copy_units = Vec::with_capacity(entries.len());
+    let mut dialogue_titles = Vec::with_capacity(entries.len());
+    for (unit, copy, title) in entries {
+        units.push(unit);
+        copy_units.push(copy);
+        dialogue_titles.push(title);
+    }
     let block_count = dialogue_titles.len();
     Some(WorkspaceSession {
         source: WorkspaceSource::Terminal,
         modified,
         title: format!("current shell  [{block_count} blocks]"),
         units,
+        copy_units,
         dialogue_titles,
     })
+}
+
+fn terminal_workspace_copy_parts(
+    block: &IndexedCommandBlock,
+    include_prompt: bool,
+    prompt_override: Option<&str>,
+) -> WorkspaceCopyParts {
+    WorkspaceCopyParts {
+        input: format_block_pair(block, CopyMode::InputOnly, include_prompt, prompt_override),
+        output: format_block_pair(block, CopyMode::OutputOnly, include_prompt, prompt_override),
+        block: format_block_pair(block, CopyMode::Both, include_prompt, prompt_override),
+        command: format_block_pair(block, CopyMode::CommandOnly, false, None),
+    }
 }
 
 fn finish_selected_units_copy(
@@ -1120,6 +1145,103 @@ fn build_agent_turn_units(session: &AgentSession) -> Vec<TextPair> {
     turns
 }
 
+fn build_agent_copy_units(
+    session: &AgentSession,
+    selection_mode: AgentSelection,
+    units: &[TextPair],
+) -> Vec<WorkspaceCopyParts> {
+    match selection_mode {
+        AgentSelection::LastTurn => build_agent_turn_copy_units(session),
+        AgentSelection::LastAssistant => {
+            build_agent_kind_copy_units(session, AgentBlockKind::Assistant, AgentCopyKind::Output)
+        }
+        AgentSelection::LastUser => {
+            build_agent_kind_copy_units(session, AgentBlockKind::User, AgentCopyKind::Input)
+        }
+        AgentSelection::LastTool | AgentSelection::LastBlocks(_) | AgentSelection::All => units
+            .iter()
+            .cloned()
+            .map(WorkspaceCopyParts::from_block)
+            .collect(),
+    }
+}
+
+fn build_agent_turn_copy_units(session: &AgentSession) -> Vec<WorkspaceCopyParts> {
+    let mut units = Vec::new();
+
+    for (start, end) in agent_turn_ranges(&session.blocks) {
+        let input = join_agent_block_texts(
+            session.blocks[start..end]
+                .iter()
+                .filter(|block| block.kind == AgentBlockKind::User && is_real_user_block(block)),
+        );
+        let output = join_agent_block_texts(
+            session.blocks[start..end]
+                .iter()
+                .filter(|block| block.kind == AgentBlockKind::Assistant),
+        );
+        let block = join_nonempty_texts([input.as_str(), output.as_str()]);
+        units.push(WorkspaceCopyParts {
+            input: plain_text_pair(input),
+            output: plain_text_pair(output),
+            block: plain_text_pair(block),
+            command: TextPair::default(),
+        });
+    }
+
+    units
+}
+
+#[derive(Clone, Copy)]
+enum AgentCopyKind {
+    Input,
+    Output,
+}
+
+fn build_agent_kind_copy_units(
+    session: &AgentSession,
+    kind: AgentBlockKind,
+    copy_kind: AgentCopyKind,
+) -> Vec<WorkspaceCopyParts> {
+    session
+        .blocks
+        .iter()
+        .filter(|block| block.kind == kind)
+        .map(|block| {
+            let text = block.text.trim().to_string();
+            let text_pair = plain_text_pair(text.clone());
+            let mut copy = WorkspaceCopyParts {
+                block: text_pair.clone(),
+                ..WorkspaceCopyParts::default()
+            };
+            match copy_kind {
+                AgentCopyKind::Input => copy.input = text_pair,
+                AgentCopyKind::Output => copy.output = text_pair,
+            }
+            copy
+        })
+        .collect()
+}
+
+fn join_agent_block_texts<'a>(blocks: impl Iterator<Item = &'a AgentBlock>) -> String {
+    join_nonempty_texts(blocks.map(|block| block.text.trim()))
+}
+
+fn join_nonempty_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
+    texts
+        .into_iter()
+        .filter(|text| !text.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+fn plain_text_pair(text: String) -> TextPair {
+    TextPair {
+        plain: text,
+        ansi: String::new(),
+    }
+}
+
 fn agent_turn_ranges(blocks: &[AgentBlock]) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     let mut start = None;
@@ -1174,10 +1296,11 @@ pub(super) fn build_text_preview(text: &str) -> String {
 mod tests {
     use super::vim::{is_vim_command, vim_single_quote};
     use super::{
-        agent_session_preview, build_agent_units, build_current_agent_session_choices,
-        filter_lines_by_regex, filter_lines_by_spec, format_block, resolve_agent_session_selector,
-        AgentBlock, AgentBlockKind, AgentProvider, AgentSelection, AgentSession, AgentSessionInfo,
-        AgentSessionProvider, CommandBlock, CopyMode, TextPair,
+        agent_session_preview, build_agent_copy_units, build_agent_units,
+        build_current_agent_session_choices, filter_lines_by_regex, filter_lines_by_spec,
+        format_block, resolve_agent_session_selector, AgentBlock, AgentBlockKind, AgentProvider,
+        AgentSelection, AgentSession, AgentSessionInfo, AgentSessionProvider, CommandBlock,
+        CopyMode, TextPair,
     };
     use anyhow::Result;
     use std::collections::HashMap;
@@ -1352,6 +1475,38 @@ mod tests {
         assert!(units[0].plain.contains("first observation"));
         assert!(units[0].plain.contains("final review"));
         assert!(!units[0].plain.contains("Cargo.toml"));
+    }
+
+    #[test]
+    fn agent_turn_copy_units_strip_role_headings_for_workspace_shortcuts() {
+        let session = AgentSession {
+            path: "codex.jsonl".into(),
+            id: Some("abc".to_string()),
+            cwd: Some("d:\\repo".to_string()),
+            blocks: vec![
+                AgentBlock {
+                    kind: AgentBlockKind::User,
+                    timestamp: None,
+                    label: None,
+                    text: "question".to_string(),
+                },
+                AgentBlock {
+                    kind: AgentBlockKind::Assistant,
+                    timestamp: None,
+                    label: None,
+                    text: "answer".to_string(),
+                },
+            ],
+        };
+
+        let units = build_agent_units(&session, AgentSelection::LastTurn);
+        let copy_units = build_agent_copy_units(&session, AgentSelection::LastTurn, &units);
+
+        assert_eq!(copy_units.len(), 1);
+        assert_eq!(copy_units[0].input.plain, "question");
+        assert_eq!(copy_units[0].output.plain, "answer");
+        assert_eq!(copy_units[0].block.plain, "question\n\nanswer");
+        assert!(!copy_units[0].block.plain.contains("## Assistant"));
     }
 
     #[test]

@@ -345,6 +345,38 @@ pub(super) fn run_workspace_picker_on_terminal(
                             &mut content_scroll,
                         );
                     }
+                    KeyCode::Char('i') if dialogue_count > 0 => {
+                        return Ok(workspace_picked_content_for_copy(
+                            &dialogues,
+                            &selected_dialogues,
+                            dialogue_idx,
+                            WorkspaceCopyShortcut::Input,
+                        ));
+                    }
+                    KeyCode::Char('o') if dialogue_count > 0 => {
+                        return Ok(workspace_picked_content_for_copy(
+                            &dialogues,
+                            &selected_dialogues,
+                            dialogue_idx,
+                            WorkspaceCopyShortcut::Output,
+                        ));
+                    }
+                    KeyCode::Char('y') if dialogue_count > 0 => {
+                        return Ok(workspace_picked_content_for_copy(
+                            &dialogues,
+                            &selected_dialogues,
+                            dialogue_idx,
+                            WorkspaceCopyShortcut::Block,
+                        ));
+                    }
+                    KeyCode::Char('c') if dialogue_count > 0 => {
+                        return Ok(workspace_picked_content_for_copy(
+                            &dialogues,
+                            &selected_dialogues,
+                            dialogue_idx,
+                            WorkspaceCopyShortcut::Command,
+                        ));
+                    }
                     KeyCode::Char('z') => {
                         fullscreen = toggle_fullscreen(fullscreen, focus);
                     }
@@ -985,6 +1017,10 @@ fn filter_workspace_session_dialogues(
         .iter()
         .filter_map(|idx| session.units.get(*idx).cloned())
         .collect();
+    filtered.copy_units = dialogue_indices
+        .iter()
+        .filter_map(|idx| session.copy_units.get(*idx).cloned())
+        .collect();
     filtered
 }
 
@@ -1193,6 +1229,38 @@ fn apply_workspace_help_action(
             }
             WorkspaceFocus::Sessions => {}
         },
+        WorkspaceHelpAction::CopyInput if dialogue_count > 0 => {
+            return Ok(Some(workspace_picked_content_for_copy(
+                dialogues,
+                selected_dialogues,
+                dialogue_idx,
+                WorkspaceCopyShortcut::Input,
+            )));
+        }
+        WorkspaceHelpAction::CopyOutput if dialogue_count > 0 => {
+            return Ok(Some(workspace_picked_content_for_copy(
+                dialogues,
+                selected_dialogues,
+                dialogue_idx,
+                WorkspaceCopyShortcut::Output,
+            )));
+        }
+        WorkspaceHelpAction::CopyBlock if dialogue_count > 0 => {
+            return Ok(Some(workspace_picked_content_for_copy(
+                dialogues,
+                selected_dialogues,
+                dialogue_idx,
+                WorkspaceCopyShortcut::Block,
+            )));
+        }
+        WorkspaceHelpAction::CopyCommand if dialogue_count > 0 => {
+            return Ok(Some(workspace_picked_content_for_copy(
+                dialogues,
+                selected_dialogues,
+                dialogue_idx,
+                WorkspaceCopyShortcut::Command,
+            )));
+        }
         WorkspaceHelpAction::ToggleFullscreen => {
             *fullscreen = toggle_fullscreen(*fullscreen, *focus);
         }
@@ -1244,6 +1312,29 @@ pub(super) fn workspace_picked_content(
     selected_dialogues: &[bool],
     dialogue_idx: usize,
 ) -> WorkspacePickedContent {
+    workspace_picked_content_for_copy(
+        dialogues,
+        selected_dialogues,
+        dialogue_idx,
+        WorkspaceCopyShortcut::Displayed,
+    )
+}
+
+#[derive(Clone, Copy)]
+enum WorkspaceCopyShortcut {
+    Displayed,
+    Input,
+    Output,
+    Block,
+    Command,
+}
+
+fn workspace_picked_content_for_copy(
+    dialogues: &[WorkspaceDialogue],
+    selected_dialogues: &[bool],
+    dialogue_idx: usize,
+    shortcut: WorkspaceCopyShortcut,
+) -> WorkspacePickedContent {
     let selected_indices = selected_dialogues
         .iter()
         .enumerate()
@@ -1258,7 +1349,13 @@ pub(super) fn workspace_picked_content(
     let units = picked_indices
         .into_iter()
         .filter_map(|idx| dialogues.get(idx))
-        .map(|dialogue| dialogue.unit.clone())
+        .map(|dialogue| match shortcut {
+            WorkspaceCopyShortcut::Displayed => dialogue.unit.clone(),
+            WorkspaceCopyShortcut::Input => dialogue.copy.input.clone(),
+            WorkspaceCopyShortcut::Output => dialogue.copy.output.clone(),
+            WorkspaceCopyShortcut::Block => dialogue.copy.block.clone(),
+            WorkspaceCopyShortcut::Command => dialogue.copy.command.clone(),
+        })
         .collect::<Vec<_>>();
     let selection = CommandSelection::RecentExplicit((1..=units.len()).collect());
     WorkspacePickedContent {
@@ -1389,11 +1486,18 @@ pub(super) fn workspace_dialogues_for_sessions(
                 .dialogue_titles
                 .iter()
                 .cloned()
-                .zip(session.units.iter().cloned())
-                .map(move |(title, unit)| WorkspaceDialogue {
-                    source: session.source,
-                    title,
-                    unit,
+                .enumerate()
+                .map(move |(idx, title)| {
+                    let unit = session.units.get(idx).cloned().unwrap_or_default();
+                    let copy = session.copy_units.get(idx).cloned().unwrap_or_else(|| {
+                        crate::tui::workspace::WorkspaceCopyParts::from_block(unit.clone())
+                    });
+                    WorkspaceDialogue {
+                        source: session.source,
+                        title,
+                        unit,
+                        copy,
+                    }
                 })
         })
         .collect()
@@ -1606,10 +1710,13 @@ fn dialogue_text_vim_view(text: String) -> VimView {
 mod tests {
     use super::{
         workspace_dialogue_vim_view, workspace_dialogues_for_sessions, workspace_picked_content,
-        WorkspaceSearchIndex, WorkspaceSearchMatch,
+        workspace_picked_content_for_copy, WorkspaceCopyShortcut, WorkspaceSearchIndex,
+        WorkspaceSearchMatch,
     };
     use crate::commands::command_block_selector::CommandSelection;
-    use crate::tui::workspace::{TextPair, WorkspaceDialogue, WorkspaceSession, WorkspaceSource};
+    use crate::tui::workspace::{
+        TextPair, WorkspaceCopyParts, WorkspaceDialogue, WorkspaceSession, WorkspaceSource,
+    };
     use crate::tui::workspace_search::{
         workspace_search_query, workspace_search_regex, WorkspaceSearchScope,
     };
@@ -1794,6 +1901,10 @@ mod tests {
                 plain: "first\nneedle one\nmiddle\nneedle two".to_string(),
                 ansi: String::new(),
             }],
+            copy_units: vec![WorkspaceCopyParts::from_block(TextPair {
+                plain: "first\nneedle one\nmiddle\nneedle two".to_string(),
+                ansi: String::new(),
+            })],
             dialogue_titles: vec!["dialogue".to_string()],
         }];
 
@@ -1855,6 +1966,95 @@ mod tests {
     }
 
     #[test]
+    fn workspace_copy_shortcuts_use_structured_chat_parts_without_headings() {
+        let dialogues = vec![WorkspaceDialogue {
+            source: WorkspaceSource::Agent(AgentProvider::Codex),
+            title: "question".to_string(),
+            unit: TextPair {
+                plain: "## User\nquestion\n\n## Assistant\nanswer".to_string(),
+                ansi: String::new(),
+            },
+            copy: WorkspaceCopyParts {
+                input: TextPair {
+                    plain: "question".to_string(),
+                    ansi: String::new(),
+                },
+                output: TextPair {
+                    plain: "answer".to_string(),
+                    ansi: String::new(),
+                },
+                block: TextPair {
+                    plain: "question\n\nanswer".to_string(),
+                    ansi: String::new(),
+                },
+                command: TextPair::default(),
+            },
+        }];
+
+        let input = workspace_picked_content_for_copy(
+            &dialogues,
+            &[false],
+            0,
+            WorkspaceCopyShortcut::Input,
+        );
+        let output = workspace_picked_content_for_copy(
+            &dialogues,
+            &[false],
+            0,
+            WorkspaceCopyShortcut::Output,
+        );
+        let block = workspace_picked_content_for_copy(
+            &dialogues,
+            &[false],
+            0,
+            WorkspaceCopyShortcut::Block,
+        );
+
+        assert_eq!(input.units[0].plain, "question");
+        assert_eq!(output.units[0].plain, "answer");
+        assert_eq!(block.units[0].plain, "question\n\nanswer");
+    }
+
+    #[test]
+    fn workspace_command_shortcut_uses_terminal_command_without_prompt() {
+        let dialogues = vec![WorkspaceDialogue {
+            source: WorkspaceSource::Terminal,
+            title: "cargo test".to_string(),
+            unit: TextPair {
+                plain: "PS C:\\repo> cargo test\nok".to_string(),
+                ansi: String::new(),
+            },
+            copy: WorkspaceCopyParts {
+                input: TextPair {
+                    plain: "PS C:\\repo> cargo test".to_string(),
+                    ansi: String::new(),
+                },
+                output: TextPair {
+                    plain: "ok".to_string(),
+                    ansi: String::new(),
+                },
+                block: TextPair {
+                    plain: "PS C:\\repo> cargo test\nok".to_string(),
+                    ansi: String::new(),
+                },
+                command: TextPair {
+                    plain: "cargo test".to_string(),
+                    ansi: "cargo test".to_string(),
+                },
+            },
+        }];
+
+        let picked = workspace_picked_content_for_copy(
+            &dialogues,
+            &[false],
+            0,
+            WorkspaceCopyShortcut::Command,
+        );
+
+        assert_eq!(picked.units[0].plain, "cargo test");
+    }
+
+    #[test]
     fn workspace_dialogue_vim_view_tracks_exact_dialogue_lines() {
         let dialogue = WorkspaceDialogue {
             source: WorkspaceSource::Agent(AgentProvider::Codex),
@@ -1863,6 +2063,10 @@ mod tests {
                 plain: "line1\nline2\nline3\nline4".to_string(),
                 ansi: "line1\nline2\nline3\nline4".to_string(),
             },
+            copy: WorkspaceCopyParts::from_block(TextPair {
+                plain: "line1\nline2\nline3\nline4".to_string(),
+                ansi: "line1\nline2\nline3\nline4".to_string(),
+            }),
         };
 
         let view = workspace_dialogue_vim_view(&dialogue);
@@ -1891,6 +2095,15 @@ mod tests {
                     ansi: format!("{title}:{dialogue_title}"),
                 })
                 .collect(),
+            copy_units: dialogue_titles
+                .iter()
+                .map(|dialogue_title| {
+                    WorkspaceCopyParts::from_block(TextPair {
+                        plain: format!("{title}:{dialogue_title}"),
+                        ansi: format!("{title}:{dialogue_title}"),
+                    })
+                })
+                .collect(),
             dialogue_titles: dialogue_titles
                 .iter()
                 .map(|dialogue_title| dialogue_title.to_string())
@@ -1906,6 +2119,10 @@ mod tests {
                 plain: plain.to_string(),
                 ansi: plain.to_string(),
             },
+            copy: WorkspaceCopyParts::from_block(TextPair {
+                plain: plain.to_string(),
+                ansi: plain.to_string(),
+            }),
         }
     }
 }

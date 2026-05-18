@@ -49,6 +49,25 @@ pub(crate) struct TextPair {
     pub(crate) ansi: String,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WorkspaceCopyParts {
+    pub(crate) input: TextPair,
+    pub(crate) output: TextPair,
+    pub(crate) block: TextPair,
+    pub(crate) command: TextPair,
+}
+
+impl WorkspaceCopyParts {
+    pub(crate) fn from_block(block: TextPair) -> Self {
+        Self {
+            input: block.clone(),
+            output: block.clone(),
+            block,
+            command: TextPair::default(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct WorkspacePickedContent {
     pub(crate) source: WorkspaceSource,
@@ -62,6 +81,7 @@ pub(crate) struct WorkspaceSession {
     pub(crate) modified: SystemTime,
     pub(crate) title: String,
     pub(crate) units: Vec<TextPair>,
+    pub(crate) copy_units: Vec<WorkspaceCopyParts>,
     pub(crate) dialogue_titles: Vec<String>,
 }
 
@@ -70,6 +90,7 @@ pub(crate) struct WorkspaceDialogue {
     pub(crate) source: WorkspaceSource,
     pub(crate) title: String,
     pub(crate) unit: TextPair,
+    pub(crate) copy: WorkspaceCopyParts,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -148,6 +169,10 @@ pub(crate) enum WorkspaceHelpAction {
     ScrollUp,
     ToggleContentMode,
     Copy,
+    CopyInput,
+    CopyOutput,
+    CopyBlock,
+    CopyCommand,
     ToggleFullscreen,
     CloseHelp,
     OpenSearch,
@@ -401,6 +426,26 @@ pub(crate) fn workspace_help_entries() -> &'static [WorkspaceHelpEntry] {
             action: WorkspaceHelpAction::ToggleContentMode,
         },
         WorkspaceHelpEntry {
+            key: "i",
+            description: "copy current input/question",
+            action: WorkspaceHelpAction::CopyInput,
+        },
+        WorkspaceHelpEntry {
+            key: "o",
+            description: "copy current output/answer",
+            action: WorkspaceHelpAction::CopyOutput,
+        },
+        WorkspaceHelpEntry {
+            key: "y",
+            description: "copy current input + output",
+            action: WorkspaceHelpAction::CopyBlock,
+        },
+        WorkspaceHelpEntry {
+            key: "c",
+            description: "copy terminal command without prompt",
+            action: WorkspaceHelpAction::CopyCommand,
+        },
+        WorkspaceHelpEntry {
             key: "Enter",
             description: "enter pane or copy selection",
             action: WorkspaceHelpAction::Copy,
@@ -543,10 +588,10 @@ fn render_footer(
                 "j/k move  Space toggle  0 source  l/Right/Enter dialogues  t vim  z fullscreen  / search  q/Esc cancel  ? help"
             }
             WorkspaceFocus::Dialogues => {
-                "j/k move  Space toggle  v range  a all  l/Right content  t vim  Enter copy  z fullscreen  / search  h/Esc back  ? help"
+                "j/k move  Space toggle  v range  a all  i/o/y copy parts  c command  l/Right content  t vim  Enter copy  z fullscreen  / search  h/Esc back  ? help"
             }
             WorkspaceFocus::Content => {
-                "j/k scroll  Ctrl-d/PageDown down  Ctrl-u/PageUp up  r mode  t vim  Enter copy  z fullscreen  / search  h/Esc back  ? help"
+                "j/k scroll  i/o/y copy parts  c command  Ctrl-d/PageDown down  Ctrl-u/PageUp up  r mode  t vim  Enter copy  z fullscreen  / search  h/Esc back  ? help"
             }
         }
     };
@@ -949,6 +994,7 @@ mod tests {
                 plain: "alpha\n\nomega".to_string(),
                 ansi: String::new(),
             },
+            copy: crate::tui::workspace::WorkspaceCopyParts::default(),
         };
 
         assert_eq!(
